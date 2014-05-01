@@ -1,0 +1,4 @@
+name=WANXUE.GWY.API
+description=万学公务员专用API模块
+core=7.x
+files[] = wanxueapi.vbo.inc

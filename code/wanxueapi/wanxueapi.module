@@ -1,0 +1,171 @@
+<?php
+//用户角色
+define('ROLE_CONSULT', '5');		//B主管咨询师
+define('ROLE_GM', '8');				//E副总裁
+define('ROLE_TEACHER','6');			//B指导老师
+define('ROLE_TEACH_LEADER','4');	//B区域教学负责人
+define('ROLE_MASTER','7');			//B总部老师
+define('ROLE_ADMINISTRATOR','3');	//B系统管理员
+define('ROLE_SENIOR_MANAGER','9');	//B高级经理
+define('ROLE_SENIOR_CONSULT','10');	//B主管咨询师-主管
+
+//学员审批状态名称
+define('WORKFLOW_NAME_TR01_PASS',8);		//通过
+define('WORKFLOW_NAME_TR01_REFUSE', 9);		//拒绝
+
+module_load_include('inc', 'wanxueapi', 'wanxueapi.vbo');
+
+/**
+ * Implements hook_node_access
+ * 
+ * @param unknown $node
+ * @param unknown $op
+ * @param unknown $account
+ * @return void|string
+ */
+function wanxueapi_node_access($node,$op,$account){
+	if(empty($node->type)) return;
+	if($node->type!='tr01') return;
+	
+	//主管咨询师-主管，高级经理 只允许查看自己所属分校的学员付费信息
+	if(!empty($account->roles[ROLE_SENIOR_MANAGER])&& 
+	   !empty($account->roles[ROLE_SENIOR_CONSULT])){
+		//节点的OG,目前只支持每个学员在一个分校的情况
+		$node_og_id = $node->og_group_ref['und'][0]['target_id'];
+		
+		//判断节点OG是否在用户的OG授权列表中，如果不在则返回不允许访问
+		$account_obj = user_load($account->uid);
+		$hasViewPermission = false;
+		foreach($account_obj->og_user_node['und'] as $key=>$value){
+			if($node_og_id == $value['target_id']){
+				$hasViewPermission = true;
+			}
+		}
+		if($hasViewPermission){	//有权限访问
+			return NODE_ACCESS_ALLOW;
+		}else{	//无权限访问
+			return NODE_ACCESS_DENY;
+		}
+	}
+}
+
+/**
+ * Implements hook_clone_node_alter
+ * 
+ * cuifang updated for tr07 when node clone
+ * 当互动答疑复制的时候，清除f07009-图片中的内容，因为要求重新上传图片
+ */
+function wanxueapi_clone_node_alter(&$node, $context) {
+	//drupal_set_message(debug($node));
+	$field_instances = field_info_instances('node', $node->type);
+	unset($node->field_f07009['und'][0]);
+}
+
+/**
+ * Implements hook_menu_alter
+ * 
+ * 根据URL判断是否可以执行该功能
+ * @param unknown $items
+ */
+function wanxueapi_menu_alter(&$items){
+	$items['node/%node/edit']['access callback']='_wanxueapi_node_edit_access';
+}
+
+/**
+ * 判断用户是否有编辑该节点的权限
+ * @return boolean|number
+ */
+function _wanxueapi_node_edit_access(){
+	global $user;
+	//debug($user->roles);
+	//drupal_set_message(in_array(6,$user->roles));
+	//指导老师和区域教研负责人不允许编辑学员报名信息
+	if(array_key_exists(4,$user->roles) || array_key_exists(6,$user->roles)){
+		$node = node_load(arg(1));
+		if($node->type=='tr01'){
+			return FALSE;	
+		}
+	}
+	return 1;
+}
+
+/**
+ * Implements hook_FORM_ID_alter
+ * 
+ * 学员编辑界面form修改，用于处理学员报名信息在审核后部分属性不允许修改
+ * 
+ * @param unknown $form
+ * @param unknown $form_state
+ * @param unknown $form_id
+ */
+function wanxueapi_form_tr01_node_form_alter(&$form, &$form_state, $form_id){
+	global $user;
+	if($user->uid == 0)return;
+	
+	if(arg(0) == 'node' && arg(1) == 'add' && arg(2) == 'tr01'){
+		//新建学员时，主管咨询师不允许修改
+		if(!array_key_exists(3,$user->roles) && !array_key_exists(7,$user->roles)){
+			//只有审核员-总部老师及系统管理员可以修改，其他人这几个字段为只显示
+			$form['field_f01035']['#disabled']=TRUE;
+		}
+	}
+	
+	if(arg(0) == 'node' && is_numeric(arg(1)) && arg(2) == 'edit'){
+		//debug($form);
+		
+		//获得学生ID
+		$nid = arg(1);
+		$workflow = db_select('workflow_node','wn')->fields('wn',array('sid'))->condition('wn.nid',$nid)->execute()->fetchField();
+
+		if($workflow== WORKFLOW_NAME_TR01_PASS){
+		//if($node->workflow == WORKFLOW_NAME_TR01_PASS){
+			//判断学生状态，如果审核通过，以下字段不允许修改
+			unset($form['og_group_ref']);
+			unset($form['field_f01019']);
+			unset($form['field_f01020']);
+			unset($form['field_f01001']);
+			unset($form['field_f01021']);
+			unset($form['field_f01056']);
+			
+			unset($form['field_f01002']);
+			unset($form['field_f01022']);
+			unset($form['field_f01023']);
+			unset($form['field_f01025']);
+			unset($form['field_f01057']);
+			unset($form['field_f01058']);
+			unset($form['field_f01026']);
+			unset($form['field_f01027']);
+			unset($form['field_f0105901']);
+			unset($form['field_f0105902']);
+			unset($form['field_f01035']);
+			unset($form['field_f01038']);
+			unset($form['field_f01039']);
+			unset($form['field_f01052']);	
+			
+			unset($form['field_f01060']);
+			unset($form['field_f01061']);
+			unset($form['field_f01062']);
+			unset($form['field_f01063']);
+			unset($form['field_f01050']);
+			
+			unset($form['field_f01029']);
+			unset($form['field_f01028']);
+			unset($form['field_f01055']);
+			unset($form['field_f01053']);
+			unset($form['body']);
+			unset($form['field_f01017']);
+			
+			unset($form['field_f01066']);	//定额退费
+			
+			if(!array_key_exists(3,$user->roles) && !array_key_exists(7,$user->roles)){
+				//只有审核员-总部老师及系统管理员可以修改，其他人这几个字段为只显示				
+				$form['field_f01067']['#disabled']=TRUE;
+				$form['field_f01068']['#disabled']=TRUE;
+				$form['field_f01069']['#disabled']=TRUE;
+				$form['field_f01070']['#disabled']=TRUE;
+				$form['field_f01071']['#disabled']=TRUE;
+			}
+		}
+	}
+}
+?>
