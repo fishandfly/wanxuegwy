@@ -26,12 +26,15 @@ module_load_include('inc', 'wanxueapi', 'wanxueapi.vbo');
 function wanxueapi_node_access($node,$op,$account){
 	if(empty($node->type)) return;
 	if($node->type!='tr01') return;
-	
+	//drupal_set_message(debug($account));
 	//主管咨询师-主管，高级经理 只允许查看自己所属分校的学员付费信息
-	if(!empty($account->roles[ROLE_SENIOR_MANAGER])&& 
-	   !empty($account->roles[ROLE_SENIOR_CONSULT])){
+ 	if(!empty($account->roles[ROLE_SENIOR_MANAGER])|| 
+ 	   !empty($account->roles[ROLE_SENIOR_CONSULT])){
+// 	if(array_key_exists(ROLE_SENIOR_MANAGER,$user->roles)
+// 	|| array_key_exists(ROLE_SENIOR_CONSULT,$user->roles)){
 		//节点的OG,目前只支持每个学员在一个分校的情况
 		$node_og_id = $node->og_group_ref['und'][0]['target_id'];
+		//drupal_set_message($node_og_id);
 		
 		//判断节点OG是否在用户的OG授权列表中，如果不在则返回不允许访问
 		$account_obj = user_load($account->uid);
@@ -77,8 +80,12 @@ function wanxueapi_menu_alter(&$items){
  */
 function _wanxueapi_node_edit_access(){
 	global $user;
-	//debug($user->roles);
-	//drupal_set_message(in_array(6,$user->roles));
+	
+	//系统管理员不受此权限规则限制
+	if(array_key_exists(ROLE_ADMINISTRATOR, $user->roles)){
+		return 1;
+	}
+	
 	//指导老师和区域教研负责人不允许编辑学员报名信息
 	if(array_key_exists(4,$user->roles) || array_key_exists(6,$user->roles)){
 		$node = node_load(arg(1));
@@ -86,6 +93,23 @@ function _wanxueapi_node_edit_access(){
 			return FALSE;	
 		}
 	}
+	
+	//主管咨询师、高级主管咨询师、高级经理不允许维护审批过的变更单（老师、期间）
+	//Easybug:396238	
+	//对于审批通过的变更单任何人都不允许维护,
+	//Easybug：392361
+	$node = node_load(arg(1));
+		
+	//判断是老师变更单、期间变更单
+	if($node->type=='tr13'||$node->type=='tr15'){
+		//判断审批状态是通过或拒绝
+		if($node->workflow == WORKFLOW_NAME_TR01_PASS
+		||$node->workflow == WORKFLOW_NAME_TR01_REFUSE){
+			//不允许修改
+			return FALSE;
+		}
+	}
+	
 	return 1;
 }
 
