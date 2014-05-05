@@ -109,8 +109,6 @@ function _wanxueapi_node_edit_access(){
 			return FALSE;
 		}
 	}
-	
-	return 1;
 }
 
 /**
