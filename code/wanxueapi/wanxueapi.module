@@ -93,6 +93,17 @@ function _wanxueapi_node_edit_access(){
 			return FALSE;	
 		}
 	}
+	//主管咨询师允许编辑自己建立的学员报名信息
+	if(array_key_exists(ROLE_CONSULT,$user->roles)){
+		$node = node_load(arg(1));
+		if($node->type=='tr01'){
+			if($node->uid == $user->uid){
+				return 1;
+			}else{
+				return FALSE;
+			}
+		}
+	}
 	
 	//主管咨询师、高级主管咨询师、高级经理不允许维护审批过的变更单（老师、期间）
 	//Easybug:396238	
@@ -109,6 +120,7 @@ function _wanxueapi_node_edit_access(){
 			return FALSE;
 		}
 	}
+	
 }
 
 /**
