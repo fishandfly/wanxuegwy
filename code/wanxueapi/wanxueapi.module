@@ -134,7 +134,10 @@ function _wanxueapi_node_edit_access(){
  */
 function wanxueapi_form_tr01_node_form_alter(&$form, &$form_state, $form_id){
 	global $user;
-	if($user->uid == 0)return;
+	
+	//admin 和 系统管理员允许修改所有内容 
+	//Easybug : #408339
+	if($user->uid == 0||array_key_exists(3,$user->roles))return;
 	
 	if(arg(0) == 'node' && arg(1) == 'add' && arg(2) == 'tr01'){
 		//新建学员时，主管咨询师不允许修改
