@@ -93,11 +93,13 @@ function _wanxueapi_node_edit_access(){
 			return FALSE;	
 		}
 	}
-	//主管咨询师允许编辑自己建立的学员报名信息
+	//作者允许编辑自己建立的学员报名信息
+	//主管咨询师允许编辑自己建立的学员报名信息，同时允许编辑分配给自己的学员报名信息
+	//Easybug: 409536#
 	if(array_key_exists(ROLE_CONSULT,$user->roles)){
 		$node = node_load(arg(1));
 		if($node->type=='tr01'){
-			if($node->uid == $user->uid){
+			if($node->uid == $user->uid || $node->field_f01035['und'][0]['target_id'] == $user->uid){
 				return 1;
 			}else{
 				return FALSE;
